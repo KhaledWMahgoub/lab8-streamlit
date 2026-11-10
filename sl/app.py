@@ -1,58 +1,75 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed May 21 17:52:09 2025
-
-@author: noob
-"""
-
 # !streamlit run app.py --server.headless true
 
-import streamlit as st
+from pathlib import Path
+
 import joblib
-import numpy as np
+import pandas as pd
+import streamlit as st
 
-model = joblib.load('modeling/svc_model.pkl')
-label_encoder = joblib.load('modeling/label_encoder.pkl')
-questions = joblib.load('modeling/questions.pkl')
+MODEL_DIR = Path(__file__).resolve().parent.parent / "modeling"
 
-st.title("🧠 Personality Prediction App (Lab13)")
-
-st.markdown("Rate the following statements on a scale from **Fully Disagree (-3)** to **Fully Agree (3)**.")
-
-likert_options = {
+LIKERT_OPTIONS = {
     "Fully Agree": 3,
     "Partially Agree": 2,
     "Slightly Agree": 1,
     "Neutral": 0,
     "Slightly Disagree": -1,
     "Partially Disagree": -2,
-    "Fully Disagree": -3
+    "Fully Disagree": -3,
 }
 
-answers = []
-unanswered = False
 
-st.write("Please respond to **all** questions before submitting.")
+@st.cache_resource
+def load_artifacts():
+    model = joblib.load(MODEL_DIR / "svc_model.pkl")
+    label_encoder = joblib.load(MODEL_DIR / "label_encoder.pkl")
+    questions = joblib.load(MODEL_DIR / "questions.pkl")
+    return model, label_encoder, questions
 
-for question in questions:
-    response = st.radio(
-        f"{question}?",
-        options=[None] + list(likert_options.keys()),
-        key=question,
-        index=0,  # None is default
-        format_func=lambda x: "Select an option" if x is None else x
-    )
-    if response is None:
-        unanswered = True
+
+st.set_page_config(page_title="Personality Prediction", layout="wide")
+
+try:
+    model, label_encoder, questions = load_artifacts()
+except FileNotFoundError as e:
+    st.error(f"Model file not found: {e.filename}")
+    st.stop()
+
+st.title("Personality Prediction App")
+
+st.markdown(
+    "Rate the following statements on a scale from "
+    "**Fully Disagree (-3)** to **Fully Agree (3)**."
+)
+st.divider()
+
+st.subheader("Personality Test")
+st.write("Please answer all questions before submitting.")
+
+with st.form("personality_form"):
+    responses = []
+    for i, question in enumerate(questions):
+        responses.append(
+            st.radio(
+                f"**{i + 1}. {question}**",
+                options=list(LIKERT_OPTIONS.keys()),
+                index=None,
+                key=f"question_{i}",
+            )
+        )
+
+    submitted = st.form_submit_button("Predict Personality", width="stretch")
+
+if submitted:
+    if any(r is None for r in responses):
+        st.error("Please answer all the questions before submitting.")
     else:
-        answers.append(likert_options[response])
+        values = [LIKERT_OPTIONS[r] for r in responses]
+        input_df = pd.DataFrame([values], columns=questions)
 
-if st.button("Submit"):
-    if unanswered or len(answers) < len(questions):
-        st.error("❗ Please answer all the questions before submitting.")
-    else:
-        input_data = np.array(answers).reshape(1, -1)
-        prediction = model.predict(input_data)[0]
+        prediction = model.predict(input_df)[0]
         persona = label_encoder.inverse_transform([prediction])[0]
-        st.success(f"🎯 Predicted Personality: **{persona}**")
+
+        st.success("Personality Prediction")
+        st.markdown(f"# {persona}")
+        st.balloons()
