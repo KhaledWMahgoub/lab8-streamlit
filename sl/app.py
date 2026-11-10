@@ -60,6 +60,7 @@ with st.form("personality_form"):
 
     submitted = st.form_submit_button("Predict Personality", width="stretch")
 
+
 if submitted:
     if any(r is None for r in responses):
         st.error("Please answer all the questions before submitting.")
