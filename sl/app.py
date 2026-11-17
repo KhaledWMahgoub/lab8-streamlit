@@ -57,8 +57,7 @@ with st.form("personality_form"):
                 key=f"question_{i}",
             )
         )
-
-submitted = st.form_submit_button("Predict Personality")
+    submitted = st.form_submit_button("Predict Personality")
 
 if submitted:
     if any(r is None for r in responses):
