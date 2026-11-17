@@ -58,7 +58,7 @@ with st.form("personality_form"):
             )
         )
 
-submitted = st.form_submit_button("Predict Personality", use_container_width=True)
+submitted = st.form_submit_button("Predict Personality")
 
 if submitted:
     if any(r is None for r in responses):
